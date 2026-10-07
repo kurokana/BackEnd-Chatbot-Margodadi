@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ServiceDomain;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -56,5 +57,23 @@ class ServiceCategory extends Model
     public function umkms(): HasMany
     {
         return $this->hasMany(Umkm::class, 'category_id', 'category_id');
+    }
+
+    /**
+     * Scope query to active categories.
+     */
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->where('is_active', true);
+    }
+
+    /**
+     * Scope query by service domain.
+     */
+    public function scopeDomain(Builder $query, ServiceDomain|string $domain): Builder
+    {
+        $value = $domain instanceof ServiceDomain ? $domain->value : $domain;
+
+        return $query->where('domain', $value);
     }
 }
