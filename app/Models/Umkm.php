@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -57,5 +58,72 @@ class Umkm extends Model
     public function products(): HasMany
     {
         return $this->hasMany(UmkmProduct::class, 'umkm_id', 'umkm_id');
+    }
+
+    /**
+     * Scope query to only active UMKMs.
+     */
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->where('is_active', true);
+    }
+
+    /**
+     * Scope query to search across various UMKM fields.
+     */
+    public function scopeSearch(Builder $query, ?string $term): Builder
+    {
+        if (blank($term)) {
+            return $query;
+        }
+
+        $searchTerm = '%' . trim($term) . '%';
+
+        return $query->where(function (Builder $q) use ($searchTerm) {
+            $q->where('name', 'like', $searchTerm)
+                ->orWhere('sub_title', 'like', $searchTerm)
+                ->orWhere('owner_name', 'like', $searchTerm)
+                ->orWhere('description', 'like', $searchTerm)
+                ->orWhere('history', 'like', $searchTerm)
+                ->orWhere('legal_certification', 'like', $searchTerm)
+                ->orWhere('legal_number', 'like', $searchTerm)
+                ->orWhere('group_name', 'like', $searchTerm)
+                ->orWhere('reg_number', 'like', $searchTerm)
+                ->orWhere('address', 'like', $searchTerm);
+        });
+    }
+
+    /**
+     * Scope query to filter by category ID or category slug.
+     */
+    public function scopeFilterCategory(Builder $query, ?string $category): Builder
+    {
+        if (blank($category)) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $q) use ($category) {
+            if (is_numeric($category)) {
+                $q->where('category_id', (int) $category);
+            } else {
+                $q->whereHas('category', function (Builder $cq) use ($category) {
+                    $cq->where('slug', $category);
+                });
+            }
+        });
+    }
+
+    /**
+     * Scope query to sort UMKM results.
+     */
+    public function scopeSort(Builder $query, ?string $sort): Builder
+    {
+        return match (strtolower((string) $sort)) {
+            'a-z', 'name_asc' => $query->orderBy('name', 'asc'),
+            'z-a', 'name_desc' => $query->orderBy('name', 'desc'),
+            'oldest', 'terlama' => $query->orderBy('umkm_id', 'asc'),
+            'newest', 'latest', 'terbaru' => $query->orderBy('umkm_id', 'desc'),
+            default => $query->orderBy('umkm_id', 'desc'),
+        };
     }
 }
