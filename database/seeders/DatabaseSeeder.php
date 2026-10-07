@@ -14,6 +14,9 @@ class DatabaseSeeder extends Seeder
         $this->call([
             PublicServiceSeeder::class,
             UmkmSeeder::class,
+            OperatorSeeder::class,
+            ServiceCategorySeeder::class,
+            ConversationSeeder::class,
         ]);
     }
 }

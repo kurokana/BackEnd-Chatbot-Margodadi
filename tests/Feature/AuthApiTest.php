@@ -61,6 +61,24 @@ class AuthApiTest extends TestCase
             ]);
     }
 
+    public function test_operator_can_login_with_username_alias(): void
+    {
+        $operator = Operator::factory()->create([
+            'email' => 'admin@margodadi.desa.id',
+            'password' => bcrypt('123'),
+        ]);
+
+        $response = $this->postJson('/api/auth/login', [
+            'username' => 'admin',
+            'password' => '123',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'status' => 'success',
+            ]);
+    }
+
     public function test_authenticated_operator_can_fetch_profile(): void
     {
         $operator = Operator::factory()->create();

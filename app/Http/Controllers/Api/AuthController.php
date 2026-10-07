@@ -54,16 +54,29 @@ class AuthController extends Controller
     public function login(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'email' => ['required', 'string', 'email'],
+            'email' => ['nullable', 'string'],
+            'username' => ['nullable', 'string'],
             'password' => ['required', 'string'],
         ]);
 
-        $operator = Operator::where('email', $validated['email'])->first();
+        $identifier = $validated['email'] ?? $validated['username'] ?? $request->input('identifier');
+
+        if (! $identifier) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Email atau username wajib diisi.',
+            ], 422);
+        }
+
+        $operator = Operator::where('email', $identifier)
+            ->orWhere('email', $identifier.'@margodadi.desa.id')
+            ->orWhereRaw('LOWER(name) LIKE ?', ['%'.strtolower($identifier).'%'])
+            ->first();
 
         if (! $operator || ! Hash::check($validated['password'], $operator->password)) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'The provided credentials do not match our records.',
+                'message' => 'Kombinasi username/email dan password tidak sesuai.',
             ], 401);
         }
 

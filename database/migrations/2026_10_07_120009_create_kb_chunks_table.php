@@ -8,32 +8,44 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
+     * Disable transaction for this migration so extension checks do not abort the transaction block.
+     */
+    public $withinTransaction = false;
+
+    /**
      * Run the migrations.
      */
     public function up(): void
     {
-        $isPgsql = DB::getDriverName() === 'pgsql';
+        $hasVector = false;
 
-        if ($isPgsql) {
-            try {
-                DB::statement('CREATE EXTENSION IF NOT EXISTS vector;');
-            } catch (\Throwable $e) {
-                // Extension may require superuser or pgvector package installed in PostgreSQL
+        if (DB::getDriverName() === 'pgsql') {
+            // Check if vector type already exists or if vector extension can be activated safely
+            $vectorTypeExists = !empty(DB::select("SELECT 1 FROM pg_type WHERE typname = 'vector'"));
+
+            if ($vectorTypeExists) {
+                $hasVector = true;
+            } else {
+                $vectorExtensionAvailable = !empty(DB::select("SELECT 1 FROM pg_available_extensions WHERE name = 'vector'"));
+                if ($vectorExtensionAvailable) {
+                    try {
+                        DB::statement('CREATE EXTENSION IF NOT EXISTS vector;');
+                        $hasVector = !empty(DB::select("SELECT 1 FROM pg_type WHERE typname = 'vector'"));
+                    } catch (\Throwable $e) {
+                        $hasVector = false;
+                    }
+                }
             }
         }
 
-        Schema::create('kb_chunks', function (Blueprint $table) use ($isPgsql) {
+        Schema::create('kb_chunks', function (Blueprint $table) use ($hasVector) {
             $table->id('chunk_id');
             $table->foreignId('document_id')->constrained('kb_documents', 'document_id')->cascadeOnDelete();
             $table->integer('chunk_index');
             $table->text('content');
 
-            if ($isPgsql) {
-                try {
-                    $table->addColumn('vector', 'embedding')->nullable();
-                } catch (\Throwable $e) {
-                    $table->text('embedding')->nullable();
-                }
+            if ($hasVector) {
+                $table->addColumn('vector', 'embedding')->nullable();
             } else {
                 $table->text('embedding')->nullable();
             }
