@@ -14,16 +14,21 @@ use App\Models\Feedback;
 use App\Models\HitlEvent;
 use App\Models\Message;
 use App\Models\Operator;
-use App\Models\PublicService;
 use App\Models\ServiceCategory;
-use App\Models\Umkm;
 use App\Models\User;
+use App\Services\RagGatewayService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Throwable;
 
 class ChatbotController extends Controller
 {
+    public function __construct(
+        protected RagGatewayService $ragGateway
+    ) {}
+
     /**
      * Initialize or resume a public chatbot session.
      */
@@ -46,7 +51,6 @@ class ChatbotController extends Controller
                 'needs_human' => false,
                 'priority' => PriorityLevel::MEDIUM,
                 'citizen_name' => 'Warga Margodadi',
-                'language' => 'id',
             ]
         );
 
@@ -158,7 +162,6 @@ class ChatbotController extends Controller
                 'needs_human' => false,
                 'priority' => PriorityLevel::MEDIUM,
                 'citizen_name' => $citizenName,
-                'language' => 'id',
             ]);
         }
 
@@ -167,7 +170,6 @@ class ChatbotController extends Controller
             'conversation_id' => $conversation->conversation_id,
             'sender_type' => SenderType::USER,
             'content' => $text,
-            'is_read' => true,
         ]);
 
         $q = strtolower($text);
@@ -224,7 +226,6 @@ class ChatbotController extends Controller
                 'sender_type' => SenderType::OPERATOR,
                 'operator_id' => $operator?->operator_id,
                 'content' => $replyText,
-                'is_read' => true,
             ]);
 
             return response()->json([
@@ -245,6 +246,47 @@ class ChatbotController extends Controller
                 ],
             ]);
         }
+
+        // Domain Knowledge Matches (Python RAG)
+        $startedAt = microtime(true);
+        $replyContent = [
+            'id' => 'msg-bot-'.Str::random(6),
+            'sender' => 'bot',
+            'timestamp' => $timeStr,
+        ];
+
+        try {
+            $ragResponse = $this->ragGateway->chat($text, 3);
+
+            $replyContent['text'] = $ragResponse['answer'] ?? 'Maaf, informasi tersebut tidak tersedia dalam data.';
+            $replyContent['sources'] = $this->formatRagSources($ragResponse['sources'] ?? []);
+        } catch (Throwable $e) {
+            Log::warning('Python RAG chat request failed', [
+                'conversation_id' => $conversation->conversation_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            $replyContent['text'] = 'Maaf, sistem RAG sedang tidak dapat dihubungi. Pastikan layanan ChatBot Python sudah berjalan di http://127.0.0.1:8001 lalu coba lagi.';
+            $replyContent['sources'] = [];
+        }
+
+        $replyContent['inferenceTime'] = round((microtime(true) - $startedAt) * 1000).'ms';
+
+        $savedBotMsg = Message::create([
+            'conversation_id' => $conversation->conversation_id,
+            'sender_type' => SenderType::BOT,
+            'content' => $replyContent['text'],
+        ]);
+        $replyContent['id'] = 'msg-bot-'.$savedBotMsg->message_id;
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'session_id' => $sessionId,
+                'conversation_id' => $conversation->conversation_id,
+                'message' => $replyContent,
+            ],
+        ]);
 
         // Domain Knowledge Matches (RAG)
         $replyContent = [
@@ -399,7 +441,6 @@ class ChatbotController extends Controller
             'conversation_id' => $conversation->conversation_id,
             'sender_type' => SenderType::BOT,
             'content' => $replyContent['text'],
-            'is_read' => true,
         ]);
         $replyContent['id'] = 'msg-bot-'.$savedBotMsg->message_id;
 
@@ -411,6 +452,31 @@ class ChatbotController extends Controller
                 'message' => $replyContent,
             ],
         ]);
+    }
+
+    private function formatRagSources(array $sources): array
+    {
+        return collect($sources)->map(function (array $source) {
+            $metadata = $source['metadata'] ?? [];
+            $distance = isset($source['distance']) ? (float) $source['distance'] : null;
+            $similarity = $distance === null ? null : max(0, min(1, 1 - $distance));
+
+            return [
+                'title' => $metadata['title'] ?? $source['file_name'] ?? 'Dokumen RAG',
+                'document_title' => $metadata['title'] ?? $source['file_name'] ?? 'Dokumen RAG',
+                'file_name' => $source['file_name'] ?? null,
+                'file_type' => $source['file_type'] ?? null,
+                'domain' => $metadata['domain'] ?? 'RAG',
+                'source' => $metadata['source'] ?? ($source['file_name'] ?? '-'),
+                'validator' => $metadata['validator'] ?? 'Aparatur Pekon',
+                'version' => $metadata['version'] ?? null,
+                'content' => $source['content'] ?? '',
+                'quote' => $source['content'] ?? '',
+                'similarity' => $similarity,
+                'similarity_percentage' => $similarity === null ? null : round($similarity * 100, 1).'%',
+                'metadata' => $metadata,
+            ];
+        })->values()->all();
     }
 
     /**

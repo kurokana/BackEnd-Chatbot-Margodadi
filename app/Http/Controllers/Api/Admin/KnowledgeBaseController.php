@@ -9,15 +9,19 @@ use App\Models\ActivityLog;
 use App\Models\KbChunk;
 use App\Models\KbDocument;
 use App\Models\RagConfiguration;
+use App\Services\RagGatewayService;
 use App\Services\VectorChunkingService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class KnowledgeBaseController extends Controller
 {
     public function __construct(
-        protected VectorChunkingService $chunkingService
+        protected VectorChunkingService $chunkingService,
+        protected RagGatewayService $ragGateway
     ) {}
 
     /**
@@ -28,6 +32,14 @@ class KnowledgeBaseController extends Controller
         $totalDocs = KbDocument::count();
         $activeDocs = KbDocument::where('is_active', true)->count();
         $totalChunks = KbChunk::count();
+        try {
+            $ragDocuments = $this->ragGateway->documents();
+            if (!empty($ragDocuments)) {
+                $totalChunks = collect($ragDocuments)->sum(fn ($doc) => (int) ($doc['chunk_count'] ?? 0));
+            }
+        } catch (Throwable $e) {
+            Log::debug('Python RAG stats unavailable', ['error' => $e->getMessage()]);
+        }
         
         $domainBreakdown = [
             'PUBLIC_SERVICE' => KbDocument::where('domain', ServiceDomain::PUBLIC_SERVICE)->count(),
@@ -74,6 +86,9 @@ class KnowledgeBaseController extends Controller
                 'created_at',
                 'updated_at',
             ])
+            ->with(['chunks' => function ($q) {
+                $q->select('chunk_id', 'document_id', 'metadata')->orderBy('chunk_index', 'asc');
+            }])
             ->withCount('chunks')
             ->orderBy('updated_at', 'desc');
 
@@ -103,6 +118,8 @@ class KnowledgeBaseController extends Controller
         $documents = $query->paginate($perPage);
 
         $formatted = collect($documents->items())->map(function (KbDocument $doc) {
+            $firstChunkMetadata = $doc->chunks->first()?->metadata ?? [];
+
             return [
                 'id' => $doc->document_id,
                 'document_id' => $doc->document_id,
@@ -113,7 +130,7 @@ class KnowledgeBaseController extends Controller
                 'validator' => $doc->validator ?? 'Aparatur Pekon',
                 'version' => $doc->version ?? 'v1.0',
                 'is_active' => (bool) $doc->is_active,
-                'chunks_count' => (int) $doc->chunks_count,
+                'chunks_count' => (int) ($firstChunkMetadata['rag_chunks_count'] ?? $doc->chunks_count),
                 'created_at' => $doc->created_at?->translatedFormat('d M Y, H:i') . ' WIB',
                 'updated_at' => $doc->updated_at?->translatedFormat('d M Y, H:i') . ' WIB',
             ];
@@ -145,12 +162,20 @@ class KnowledgeBaseController extends Controller
             'is_active' => ['nullable', 'boolean'],
             'content' => ['nullable', 'string'],
             'chunks' => ['nullable', 'array'],
+            'file' => ['nullable', 'file', 'mimes:pdf,docx,xlsx,xls,txt', 'max:51200'],
         ]);
+
+        if (!$request->hasFile('file') && empty($validated['content']) && empty($validated['chunks'])) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unggah file atau isi konten teks dokumen terlebih dahulu.',
+            ], 422);
+        }
 
         $document = KbDocument::create([
             'title' => $validated['title'],
             'domain' => ServiceDomain::from($validated['domain']),
-            'source' => $validated['source'] ?? null,
+            'source' => $validated['source'] ?? $request->file('file')?->getClientOriginalName() ?? 'Upload SOP',
             'validator' => $validated['validator'] ?? 'Aparatur Pekon',
             'version' => $validated['version'] ?? 'v1.0',
             'is_active' => $validated['is_active'] ?? true,
@@ -158,9 +183,41 @@ class KnowledgeBaseController extends Controller
 
         $contentToChunk = $validated['content'] ?? ($validated['chunks'] ?? []);
         $chunksCount = 0;
+        $ragDocumentId = null;
 
-        if (!empty($contentToChunk)) {
-            $chunksCount = $this->chunkingService->processAndSaveChunks($document, $contentToChunk);
+        try {
+            if ($request->hasFile('file')) {
+                $ragUpload = $this->ragGateway->uploadDocument(
+                    $request->file('file'),
+                    $this->ragMetadata($document)
+                );
+
+                $ragDocumentId = $ragUpload['document_id'] ?? null;
+                $chunksCount = (int) ($ragUpload['chunks'] ?? 0);
+                $this->saveRagSyncChunk($document, $request->file('file')->getClientOriginalName(), $chunksCount, $ragDocumentId);
+            } elseif (!empty($contentToChunk)) {
+                $ragUpload = $this->ragGateway->indexText(array_merge(
+                    $this->ragMetadata($document),
+                    ['content' => is_array($contentToChunk) ? implode("\n\n", $contentToChunk) : $contentToChunk]
+                ));
+
+                $ragDocumentId = $ragUpload['document_id'] ?? null;
+                $chunksCount = (int) ($ragUpload['chunks'] ?? 0);
+                $this->saveRagSyncChunk($document, $document->title.'.txt', $chunksCount, $ragDocumentId);
+            }
+        } catch (Throwable $e) {
+            $document->delete();
+
+            Log::warning('Python RAG document indexing failed', [
+                'title' => $validated['title'],
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Dokumen gagal diindeks ke Python RAG. Pastikan layanan ChatBot berjalan di http://127.0.0.1:8001.',
+                'detail' => $e->getMessage(),
+            ], 502);
         }
 
         // Activity Audit Log
@@ -182,8 +239,45 @@ class KnowledgeBaseController extends Controller
                 'document_id' => $document->document_id,
                 'title' => $document->title,
                 'chunks_count' => $chunksCount,
+                'rag_document_id' => $ragDocumentId,
             ],
         ], 201);
+    }
+
+    private function ragMetadata(KbDocument $document): array
+    {
+        return [
+            'title' => $document->title,
+            'domain' => $document->domain instanceof ServiceDomain ? $document->domain->value : (string) $document->domain,
+            'source' => $document->source,
+            'validator' => $document->validator ?? 'Aparatur Pekon',
+            'version' => $document->version ?? 'v1.0',
+            'is_active' => (bool) $document->is_active,
+            'laravel_document_id' => $document->document_id,
+        ];
+    }
+
+    private function saveRagSyncChunk(
+        KbDocument $document,
+        string $fileName,
+        int $chunksCount,
+        int|string|null $ragDocumentId
+    ): void {
+        $document->chunks()->delete();
+
+        KbChunk::create([
+            'document_id' => $document->document_id,
+            'chunk_index' => 0,
+            'content' => "File {$fileName} telah diindeks oleh Python RAG ({$chunksCount} chunks).",
+            'embedding' => null,
+            'metadata' => array_merge($this->ragMetadata($document), [
+                'file_name' => $fileName,
+                'rag_document_id' => $ragDocumentId,
+                'rag_chunks_count' => $chunksCount,
+                'indexed_at' => now()->toIso8601String(),
+            ]),
+            'created_at' => now(),
+        ]);
     }
 
     /**
@@ -207,6 +301,7 @@ class KnowledgeBaseController extends Controller
                 'created_at' => $chunk->created_at?->translatedFormat('d M Y, H:i') . ' WIB',
             ];
         });
+        $firstChunkMetadata = $document->chunks->first()?->metadata ?? [];
 
         return response()->json([
             'status' => 'success',
@@ -219,7 +314,7 @@ class KnowledgeBaseController extends Controller
                 'validator' => $document->validator,
                 'version' => $document->version,
                 'is_active' => (bool) $document->is_active,
-                'chunks_count' => $chunks->count(),
+                'chunks_count' => (int) ($firstChunkMetadata['rag_chunks_count'] ?? $chunks->count()),
                 'chunks' => $chunks,
                 'created_at' => $document->created_at?->translatedFormat('d M Y, H:i') . ' WIB',
                 'updated_at' => $document->updated_at?->translatedFormat('d M Y, H:i') . ' WIB',
@@ -289,9 +384,21 @@ class KnowledgeBaseController extends Controller
      */
     public function destroy(Request $request, string|int $id): JsonResponse
     {
-        $document = KbDocument::findOrFail($id);
+        $document = KbDocument::with('chunks')->findOrFail($id);
         $title = $document->title;
         $docId = $document->document_id;
+        $ragDocumentId = $document->chunks->first()?->metadata['rag_document_id'] ?? null;
+
+        if ($ragDocumentId) {
+            try {
+                $this->ragGateway->deleteDocument((int) $ragDocumentId);
+            } catch (Throwable $e) {
+                Log::debug('Python RAG document delete skipped', [
+                    'rag_document_id' => $ragDocumentId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
 
         $document->chunks()->delete();
         $document->delete();
@@ -392,8 +499,54 @@ class KnowledgeBaseController extends Controller
         ]);
 
         $query = trim($request->input('query'));
-        $topK = (int) $request->input('top_k', 4);
+        $topK = (int) $request->input('top_k', 3);
         $domain = $request->input('domain');
+
+        try {
+            $ragResponse = $this->ragGateway->search($query, $topK);
+            $sources = collect($ragResponse['sources'] ?? []);
+
+            if ($domain && strtoupper($domain) !== 'ALL') {
+                $sources = $sources->filter(function ($source) use ($domain) {
+                    return strtoupper($source['metadata']['domain'] ?? '') === strtoupper($domain);
+                });
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'query' => $query,
+                    'top_k' => $topK,
+                    'total_candidates' => $sources->count(),
+                    'matched_count' => $sources->count(),
+                    'execution_time' => 'Python RAG',
+                    'results' => $sources->values()->map(function ($source, $index) {
+                        $metadata = $source['metadata'] ?? [];
+                        $distance = isset($source['distance']) ? (float) $source['distance'] : null;
+                        $similarity = $distance === null ? null : max(0, min(1, 1 - $distance));
+
+                        return [
+                            'chunk_id' => $index + 1,
+                            'chunk_index' => $metadata['chunk_in_record'] ?? $index,
+                            'document_id' => $metadata['laravel_document_id'] ?? null,
+                            'document_title' => $metadata['title'] ?? $source['file_name'] ?? 'Dokumen RAG',
+                            'domain' => $metadata['domain'] ?? 'RAG',
+                            'validator' => $metadata['validator'] ?? 'Aparatur Pekon',
+                            'source' => $metadata['source'] ?? ($source['file_name'] ?? '-'),
+                            'content' => $source['content'] ?? '',
+                            'similarity' => $similarity,
+                            'similarity_percentage' => $similarity === null ? null : round($similarity * 100, 1).'%',
+                            'char_count' => mb_strlen($source['content'] ?? ''),
+                            'metadata' => $metadata,
+                        ];
+                    }),
+                ],
+            ]);
+        } catch (Throwable $e) {
+            Log::debug('Python RAG retrieval unavailable, falling back to local simulator', [
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         $retrievalResult = $this->chunkingService->testRetrieval($query, $topK, $domain);
 
