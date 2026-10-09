@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Local config and secrets
+.env
+.env.*
+!.env.example
+
+# Runtime files
+uploads/
+.cache/
+logs/
+*.log
+
+# Local databases and vector stores
+*.db
+*.sqlite
+Vector.db/
+
+# Local/private RAG assets
+Data/
+models/
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
