@@ -59,11 +59,26 @@ class WahaWebhookController extends Controller
             return response()->json(['status' => 'ignored', 'reason' => 'group or empty body']);
         }
 
-        // Ekstrak nomor telepon murni (misal: 628123456789)
+        // Ekstrak nomor telepon & chatId tujuan balasan
+        $replyChatId = $from;
         $cleanPhone = explode('@', $from)[0];
         $senderName = $payload['_data']['notifyName']
             ?? $payload['pushName']
-            ?? ('Warga WA (+'.$cleanPhone.')');
+            ?? null;
+
+        // Jika pengirim menggunakan WhatsApp privacy/LID (@lid), dapatkan nomor HP dan nama asli dari kontak WAHA
+        if (str_ends_with($from, '@lid')) {
+            $contact = $this->wahaService->getContact($from);
+            if (! empty($contact['id']) && str_ends_with($contact['id'], '@c.us')) {
+                $cleanPhone = explode('@', $contact['id'])[0];
+                $replyChatId = $contact['id'];
+            }
+            if (empty($senderName)) {
+                $senderName = $contact['pushname'] ?? $contact['name'] ?? null;
+            }
+        }
+
+        $senderName = $senderName ?: ('Warga WA (+'.$cleanPhone.')');
 
         // 1. Temukan atau buat User warga berdasarkan nomor WhatsApp
         $user = User::firstOrCreate(
@@ -183,7 +198,7 @@ class WahaWebhookController extends Controller
             ]);
 
             try {
-                $this->wahaService->sendMessage($cleanPhone, $escalationText);
+                $this->wahaService->sendMessage($replyChatId, $escalationText);
             } catch (Throwable $e) {
                 Log::warning('Failed sending WAHA escalation reply', ['error' => $e->getMessage()]);
             }
@@ -221,7 +236,7 @@ class WahaWebhookController extends Controller
 
         // Kirimkan jawaban balik ke nomor WhatsApp warga via WAHA
         try {
-            $this->wahaService->sendMessage($cleanPhone, $replyText);
+            $this->wahaService->sendMessage($replyChatId, $replyText);
         } catch (Throwable $e) {
             Log::warning('Failed sending WAHA bot reply', ['error' => $e->getMessage()]);
         }

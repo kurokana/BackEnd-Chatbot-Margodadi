@@ -70,11 +70,35 @@ class WahaService
     }
 
     /**
-     * Format nomor HP Indonesia menjadi format JID WhatsApp (misal: 628123456789@c.us).
+     * Dapatkan detail kontak WAHA berdasarkan JID/LID/nomor.
+     */
+    public function getContact(string $contactId): ?array
+    {
+        $url = "{$this->baseUrl}/api/contacts";
+
+        $request = Http::timeout(10)->acceptJson();
+        if ($this->apiKey) {
+            $request->withHeaders(['X-Api-Key' => $this->apiKey]);
+        }
+
+        $response = $request->get($url, [
+            'session' => $this->session,
+            'contactId' => $contactId,
+        ]);
+
+        if ($response->successful()) {
+            return $response->json();
+        }
+
+        return null;
+    }
+
+    /**
+     * Format nomor HP Indonesia menjadi format JID WhatsApp (misal: 628123456789@c.us atau 123...@lid).
      */
     public function formatChatId(string $phone): string
     {
-        // Jika sudah memiliki suffix @c.us atau @g.us
+        // Jika sudah memiliki suffix @c.us, @lid, atau @g.us
         if (str_contains($phone, '@')) {
             return trim($phone);
         }
@@ -87,6 +111,11 @@ class WahaService
             $digits = '62'.substr($digits, 1);
         } elseif (str_starts_with($digits, '8')) {
             $digits = '62'.$digits;
+        }
+
+        // Jika ini adalah WhatsApp LID (biasanya >13 digit dan bukan berawalan kode negara 62)
+        if (strlen($digits) > 13 && ! str_starts_with($digits, '62')) {
+            return $digits.'@lid';
         }
 
         return $digits.'@c.us';
