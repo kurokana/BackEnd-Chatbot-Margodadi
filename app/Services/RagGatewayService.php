@@ -70,14 +70,15 @@ class RagGatewayService
         }
     }
 
-    public function indexText(array $payload): array
+    public function indexText(array $payload, ?int $timeout = null): array
     {
-        return $this->postJson('/documents/text', $payload, (int) config('services.rag.index_timeout', 120))->json();
+        $timeout = $timeout ?? min((int) config('services.rag.index_timeout', 60), 30);
+        return $this->postJson('/documents/text', $payload, $timeout)->json();
     }
 
     public function deleteDocument(int $documentId): bool
     {
-        $response = Http::timeout(30)
+        $response = Http::timeout(10)
             ->acceptJson()
             ->delete($this->url('/documents/'.$documentId));
 

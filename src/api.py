@@ -255,6 +255,8 @@ def upload_text_document(request: TextDocumentRequest) -> UploadResponse:
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Gagal memproses embedding AI: {exc}") from exc
 
     return UploadResponse(
         document_id=document_id,

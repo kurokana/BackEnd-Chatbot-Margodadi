@@ -303,6 +303,9 @@ class UmkmController extends Controller
             }
         }
 
+        // Build old markdown profile before updating database to detect text changes
+        $oldMarkdown = $this->aiKnowledgeService->buildMarkdownProfile($umkm);
+
         DB::transaction(function () use ($umkm, $validated, $bannerUrl, $existingGallery, $request) {
             $umkm->update([
                 'category_id' => $validated['category_id'] ?? $umkm->category_id,
@@ -348,8 +351,21 @@ class UmkmController extends Controller
             }
         });
 
-        // Re-Sync to Python RAG & Knowledge Base
-        $aiSyncResult = $this->aiKnowledgeService->syncToRag($umkm->fresh(['category', 'products']));
+        // Smart Check: Only trigger Python RAG embedding if text profile actually changed
+        $freshUmkm = $umkm->fresh(['category', 'products']);
+        $newMarkdown = $this->aiKnowledgeService->buildMarkdownProfile($freshUmkm);
+        $isContentChanged = ($oldMarkdown !== $newMarkdown);
+
+        if ($isContentChanged) {
+            $aiSyncResult = $this->aiKnowledgeService->syncToRag($freshUmkm);
+            $syncDesc = "AI re-index: " . ($aiSyncResult['status'] ?? 'pending');
+        } else {
+            $aiSyncResult = [
+                'status' => 'skipped',
+                'message' => 'Konten teks UMKM tidak berubah, sinkronisasi AI dilewati.',
+            ];
+            $syncDesc = "gambar/media diperbarui, AI sync dilewati";
+        }
 
         // Activity Audit Log
         $operator = $request->user();
@@ -358,16 +374,18 @@ class UmkmController extends Controller
             'actor_name' => $operator?->name ?? 'Aparatur Pekon',
             'action' => 'UMKM_UPDATE',
             'target' => $umkm->reg_number,
-            'description' => "Memperbarui data UMKM: '{$umkm->name}' (AI re-index: " . ($aiSyncResult['status'] ?? 'pending') . ")",
+            'description' => "Memperbarui data UMKM: '{$umkm->name}' ({$syncDesc})",
             'channel' => ChannelType::WEB,
             'created_at' => now(),
         ]);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Data UMKM berhasil diperbarui dan disinkronkan ke AI Virtual Guide.',
+            'message' => $isContentChanged
+                ? 'Data UMKM berhasil diperbarui dan disinkronkan ke AI Virtual Guide.'
+                : 'Data UMKM dan gambar berhasil diperbarui.',
             'ai_sync' => $aiSyncResult,
-            'data' => $this->formatUmkmDetail($umkm->fresh(['category', 'products', 'kbDocument'])),
+            'data' => $this->formatUmkmDetail($freshUmkm->loadMissing(['kbDocument'])),
         ]);
     }
 
