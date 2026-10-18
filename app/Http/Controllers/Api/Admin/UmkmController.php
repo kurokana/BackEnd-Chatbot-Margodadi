@@ -279,27 +279,29 @@ class UmkmController extends Controller
         $umkm = Umkm::with('products')->findOrFail($id);
         $validated = $this->validateUmkmRequest($request, $id);
 
-        // Handle Banner Image Replacement
+        // Handle Banner Image Replacement or Removal
         $bannerUrl = $umkm->banner_image_url;
-        if ($request->hasFile('banner_image')) {
+        if ($request->boolean('remove_banner')) {
+            $bannerUrl = null;
+        } elseif ($request->hasFile('banner_image')) {
             $bannerPath = $request->file('banner_image')->store('umkms/banners', 'public');
             $bannerUrl = asset('storage/' . $bannerPath);
         }
 
-        // Handle Gallery Images (Append new uploaded images)
+        // Handle Retained Gallery Images (Start with retained list if sent, else existing)
         $existingGallery = $umkm->gallery_urls ?? [];
-        if ($request->hasFile('gallery_images')) {
-            foreach ($request->file('gallery_images') as $galFile) {
-                $galPath = $galFile->store('umkms/gallery', 'public');
-                $existingGallery[] = asset('storage/' . $galPath);
-            }
-        }
-
-        // If client sends retained gallery URLs
         if ($request->has('retained_gallery_urls')) {
             $retained = $this->parseJsonInput($request->input('retained_gallery_urls'));
             if (is_array($retained)) {
                 $existingGallery = $retained;
+            }
+        }
+
+        // Append newly uploaded gallery images
+        if ($request->hasFile('gallery_images')) {
+            foreach ($request->file('gallery_images') as $galFile) {
+                $galPath = $galFile->store('umkms/gallery', 'public');
+                $existingGallery[] = asset('storage/' . $galPath);
             }
         }
 

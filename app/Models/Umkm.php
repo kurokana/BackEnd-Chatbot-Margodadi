@@ -54,6 +54,54 @@ class Umkm extends Model
         ];
     }
 
+    /**
+     * Dynamic URL normalizer for banner image.
+     */
+    public function getBannerImageUrlAttribute(?string $value): ?string
+    {
+        if (blank($value)) {
+            return null;
+        }
+
+        if (str_starts_with($value, 'storage/')) {
+            return asset($value);
+        }
+
+        if (str_starts_with($value, 'umkms/')) {
+            return asset('storage/' . $value);
+        }
+
+        if (str_contains($value, 'localhost') || str_contains($value, '127.0.0.1')) {
+            $path = parse_url($value, PHP_URL_PATH);
+            if ($path) {
+                return asset(ltrim($path, '/'));
+            }
+        }
+
+        return $value;
+    }
+
+    /**
+     * Dynamic URL normalizer for gallery images.
+     */
+    public function getGalleryUrlsAttribute($value): array
+    {
+        $urls = is_string($value) ? json_decode($value, true) : $value;
+        if (!is_array($urls)) {
+            return [];
+        }
+
+        return array_map(function ($url) {
+            if (is_string($url) && (str_contains($url, 'localhost') || str_contains($url, '127.0.0.1'))) {
+                $path = parse_url($url, PHP_URL_PATH);
+                if ($path) {
+                    return asset(ltrim($path, '/'));
+                }
+            }
+            return $url;
+        }, $urls);
+    }
+
     public function category(): BelongsTo
     {
         return $this->belongsTo(ServiceCategory::class, 'category_id', 'category_id');
