@@ -70,7 +70,7 @@ class UmkmAiKnowledgeService
 ## Sejarah & Latar Belakang Usaha:
 {$umkm->history}
 
-## Daftar Produk Unggulan & Harga:
+## Daftar Produk & Layanan Usaha:
 {$productListString}
 
 ## Panduan Pembelian & Pemesanan:

@@ -12,6 +12,10 @@ if sys.stdout and hasattr(sys.stdout, "reconfigure"):
 if sys.stderr and hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
+ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
 from src.chunker import TextChunk, chunk_records
 from src.data_loader import SourceRecord
 from src.db import get_connection
@@ -78,7 +82,7 @@ def build_umkm_markdown(umkm: dict[str, Any], products: list[dict[str, Any]]) ->
 ## Sejarah & Latar Belakang Usaha:
 {history}
 
-## Daftar Produk Unggulan & Harga:
+## Daftar Produk & Layanan Usaha:
 {prod_str}
 
 ## Panduan Pembelian & Pemesanan:

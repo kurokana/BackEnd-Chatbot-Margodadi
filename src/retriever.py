@@ -59,6 +59,10 @@ class Retriever:
         "margodadi",
     }
 
+    SHORT_INFORMATIVE_WORDS = {
+        "umkm", "sku", "ktp", "kk", "rt", "rw", "bhp", "blt", "pkh", "sktm", "ntcr", "nib", "pbb"
+    }
+
     def __init__(self) -> None:
         self.embedder = Embedder()
 
@@ -81,7 +85,10 @@ class Retriever:
         terms = []
         for word in words:
             is_level_code = bool(re.fullmatch(r"[a-z]-\d+", word))
-            if (len(word) < 4 and not is_level_code) or word in self.STOPWORDS:
+            if (
+                (len(word) < 4 and not is_level_code and word not in self.SHORT_INFORMATIVE_WORDS)
+                or word in self.STOPWORDS
+            ):
                 continue
             if word not in terms:
                 terms.append(word)
@@ -96,7 +103,9 @@ class Retriever:
             for index in range(len(words) - size + 1):
                 chunk = words[index : index + size]
                 has_informative_word = any(
-                    len(word) >= 4 and word not in self.STOPWORDS for word in chunk
+                    (len(word) >= 4 or word in self.SHORT_INFORMATIVE_WORDS)
+                    and word not in self.STOPWORDS
+                    for word in chunk
                 )
                 if not has_informative_word:
                     continue
@@ -118,6 +127,7 @@ class Retriever:
         phrases: list[str],
     ) -> float:
         content = row[1].lower()
+        file_name = (row[2] or "").lower()
         exact_counts = [self._exact_count(content, term) for term in terms]
         exact_matches = sum(1 for count in exact_counts if count > 0)
         total_occurrences = sum(exact_counts)
@@ -126,7 +136,18 @@ class Retriever:
         exact_boost = min(0.60, exact_matches * 0.24)
         occurrence_boost = min(0.16, max(0, total_occurrences - exact_matches) * 0.03)
         phrase_boost = min(0.40, phrase_matches * 0.20)
-        keyword_boost = exact_boost + occurrence_boost + phrase_boost
+
+        # Overview / authoritative directory boost for aggregate product queries
+        title_boost = 0.0
+        normalized_filename = file_name.replace("_", " ")
+        if any(term in normalized_filename for term in terms):
+            title_boost += 0.12
+        if any(phrase in normalized_filename for phrase in phrases):
+            title_boost += 0.20
+        if ("produk" in terms or "unggulan" in terms or "potensi" in terms) and "direktori_potensi" in file_name:
+            title_boost += 0.35
+
+        keyword_boost = exact_boost + occurrence_boost + phrase_boost + title_boost
         return float(row[5]) - keyword_boost
 
     def search(self, question: str, top_k: int = RAG_TOP_K) -> list[SearchResult]:

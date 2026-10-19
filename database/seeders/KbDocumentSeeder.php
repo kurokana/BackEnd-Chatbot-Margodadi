@@ -142,16 +142,17 @@ class KbDocumentSeeder extends Seeder
                 ],
             ],
 
-            // 10. Direktori Potensi UMKM
+            // 10. Direktori Potensi dan Produk Unggulan UMKM
             [
-                'title' => 'Direktori Potensi UMKM dan Ekonomi Kreatif 4 Dusun Pekon Margodadi',
+                'title' => 'Direktori Potensi dan Produk Unggulan UMKM Pekon Margodadi',
                 'domain' => ServiceDomain::UMKM,
                 'source' => 'Data_UMKM_Margodadi_AI.xlsx',
                 'validator' => 'Kaur Perencanaan (Fitri Anggeraeni)',
                 'version' => 'v2026.1',
                 'chunks' => [
-                    "Potensi UMKM Pekon Margodadi: Pekon Margodadi memiliki 71 pelaku UMKM aktif yang tersebar di 4 dusun dengan komoditas beragam:\n- Dusun Margorejo (25 UMKM): Pusat peternakan ayam/kambing, bahan bangunan & pengrajin batu bata, bengkel motor/mobil, salon, dan toko sembako.\n- Dusun Sumberdadi (22 UMKM): Industri batu bata, toko pakan ternak & pertanian, mebel perabot kayu, bengkel las, dan konveksi jahit.\n- Dusun Margodadi (17 UMKM): Agen beras pangan, toko bahan bangunan, apotek/kesehatan, kuliner bakso & warung makan, bengkel otomotif, dan pangkas rambut.\n- Dusun Bulurejo (7 UMKM): Peternakan ayam petelur, toko kelontong, usaha daur ulang, dan pengrajin bata.",
-                    "Cara Pembelian dan Kemitraan UMKM Margodadi: Pembeli atau pengunjung dapat mengunjungi lokasi gerai usaha langsung di dusun masing-masing atau menghubungi kontak pelaku usaha melalui panduan direktori UMKM Pekon Margodadi. Seluruh unit usaha dibina oleh Pemerintah Pekon Margodadi guna mendorong pertumbuhan ekonomi perdesaan.",
+                    "Daftar Produk Unggulan UMKM dan Komoditas Utama Pekon Margodadi:\nPekon Margodadi memiliki berbagai produk unggulan dan potensi ekonomi binaan warga di 4 dusun, meliputi:\n1. Sektor Pertanian & Olahan Pangan: Beras kemasan dan penggilingan padi (Pabrik Padi Iratno, Pabrik Padi Yudi, Agen Beras Anwar, Agen Beras & Pabrik Padi Aji Idar).\n2. Sektor Bahan Bangunan & Manufaktur: Sentra industri batu bata merah berkualitas dan pembuatan genteng tradisional (Batu Bata Mayoritas, Usaha Pembuatan Genteng, Usaha Batu Bata Sumberdadi, Pabrik Genteng Margorejo).\n3. Sektor Peternakan Rakyat: Telur ayam ras segar, telur asin, peternakan ayam broiler/pedaging, peternakan kambing dan sapi potong (Telur Ayam Tasya, Roys Boiler dan Ras, Usaha Telur Asin & Keripik Pisang Bu Endang, Rian Farm, Margodadi Farm, Gabriel Farm).\n4. Sektor Konveksi & Kriya Kayu: Pembuatan pakaian jahit/konveksi baju (Konveksi Baju 1 & 2), pengolahan kayu bangunan dan kusen aluminium (Panglong Kayu, Beni Aluminium, Sugi Panglong), serta kerajinan seni kreatif (Jaya Art).\n5. Sektor Kuliner Desa: Keripik pisang aneka rasa, bakpau hijau, olahan ayam goreng (Usaha Chicken), warung sate, dan aneka olahan pangan siap saji.",
+                    "Sebaran Potensi 71 Pelaku UMKM Pekon Margodadi per Wilayah Dusun:\n- Dusun Margorejo (25 UMKM): Pusat peternakan kambing/sapi, pabrik genteng & batu bata, agen beras, pasar pagi desa, bengkel otomotif, salon, kuliner olahan, dan toko sembako.\n- Dusun Sumberdadi (22 UMKM): Industri batu bata merah, konveksi pembuatan pakaian, penggilingan padi, pengolahan mebel/kusen aluminium, pakan ternak, dan bengkel las teknik.\n- Dusun Margodadi (17 UMKM): Agen beras dan pangan pekon, toko bahan bangunan, apotek/layanan kesehatan, peternakan telur ayam, kuliner bakso & warung makan, bengkel mobil/motor, dan pangkas rambut.\n- Dusun Bulurejo (7 UMKM): Peternakan ayam petelur & sapi, industri batu bata Bulurejo, toko kelontong warga, dan usaha daur ulang.",
+                    "Cara Pembelian, Pemesanan, dan Kemitraan UMKM Margodadi:\nPembeli, wisatawan, dan calon mitra dapat langsung mendatangi gerai produksi di dusun terkait atau menghubungi kontak WhatsApp pelaku usaha melalui Katalog Direktori UMKM Pekon Margodadi. Seluruh unit usaha terdaftar dan dibina oleh Pemerintah Pekon Margodadi untuk memperkuat ketahanan ekonomi perdesaan.",
                 ],
             ],
         ];

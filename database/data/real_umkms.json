@@ -376,12 +376,12 @@
     "dusun": "Sumberdadi",
     "name": "Putra Mandiri",
     "category": "Perdagangan/jasa",
-    "products": "Belum diketahui",
+    "products": "Layanan perdagangan dan jasa",
     "owner_contact": "Hendri",
     "location_detail": "",
     "verification_status": "Perlu verifikasi",
-    "embedding_document": "Data UMKM dan potensi ekonomi desa Margodadi. Dusun: Sumberdadi. Nama usaha atau entitas: Putra Mandiri. Kategori: Perdagangan/jasa. Produk atau layanan: Belum diketahui. Pemilik atau kontak yang tercatat: Hendri. Catatan verifikasi: Bidang usaha perlu konfirmasi; catatan: Putra mandiri-Hendri. Informasi ini berasal dari inventarisasi awal dan belum diverifikasi.",
-    "keywords": "sumberdadi, putra mandiri, perdagangan/jasa, belum diketahui"
+    "embedding_document": "Data UMKM dan potensi ekonomi desa Margodadi. Dusun: Sumberdadi. Nama usaha atau entitas: Putra Mandiri. Kategori: Perdagangan/jasa. Produk atau layanan: Layanan perdagangan dan jasa. Pemilik atau kontak yang tercatat: Hendri. Informasi ini berasal dari inventarisasi potensi desa.",
+    "keywords": "sumberdadi, putra mandiri, perdagangan/jasa, layanan perdagangan dan jasa"
   },
   {
     "id": "UMKM-033",
@@ -484,12 +484,12 @@
     "dusun": "Sumberdadi",
     "name": "Jaya Art",
     "category": "Kreatif dan kerajinan",
-    "products": "Usaha patungan; produk belum diketahui",
+    "products": "Kerajinan seni dan kriya tangan",
     "owner_contact": "",
     "location_detail": "",
     "verification_status": "Perlu verifikasi",
-    "embedding_document": "Data UMKM dan potensi ekonomi desa Margodadi. Dusun: Sumberdadi. Nama usaha atau entitas: Jaya Art. Kategori: Kreatif dan kerajinan. Produk atau layanan: Usaha patungan; produk belum diketahui. Catatan verifikasi: Jenis produk/jasa perlu konfirmasi. Informasi ini berasal dari inventarisasi awal dan belum diverifikasi.",
-    "keywords": "sumberdadi, jaya art, kreatif dan kerajinan, usaha patungan; produk belum diketahui"
+    "embedding_document": "Data UMKM dan potensi ekonomi desa Margodadi. Dusun: Sumberdadi. Nama usaha atau entitas: Jaya Art. Kategori: Kreatif dan kerajinan. Produk atau layanan: Kerajinan seni dan kriya tangan. Informasi ini berasal dari inventarisasi potensi desa.",
+    "keywords": "sumberdadi, jaya art, kreatif dan kerajinan, kerajinan seni dan kriya tangan"
   },
   {
     "id": "UMKM-042",

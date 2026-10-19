@@ -115,13 +115,14 @@ class UmkmSeeder extends Seeder
                 $items = array_filter(array_map('trim', preg_split('/[;,]/', $productsRaw)));
                 foreach ($items as $item) {
                     if (empty($item)) continue;
+                    if (preg_match('/(belum diketahui|usaha patungan)/i', $item)) continue;
                     UmkmProduct::firstOrCreate(
                         [
                             'umkm_id' => $umkm->umkm_id,
                             'name' => ucfirst($item),
                         ],
                         [
-                            'description' => "Produk / layanan unggulan {$item} dari {$name} di Dusun {$dusun}.",
+                            'description' => "Produk atau layanan {$item} dari {$name} di Dusun {$dusun}.",
                             'price' => 'Hubungi Penjual',
                             'is_active' => true,
                         ]
