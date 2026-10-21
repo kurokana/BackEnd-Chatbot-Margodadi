@@ -27,9 +27,10 @@ class UpdateOperatorActivity
 
         if ($user instanceof Operator && $user->is_active) {
             $lastActivity = $user->last_activity_at;
+            $now = now();
 
             // 1. Enforce 60-minute idle session timeout
-            if ($lastActivity && $lastActivity->diffInMinutes(now()) >= self::IDLE_TIMEOUT_MINUTES) {
+            if ($lastActivity && $lastActivity->lessThanOrEqualTo($now) && $lastActivity->diffInMinutes($now) >= self::IDLE_TIMEOUT_MINUTES) {
                 // Revoke current Sanctum token
                 $request->user()->currentAccessToken()?->delete();
 
