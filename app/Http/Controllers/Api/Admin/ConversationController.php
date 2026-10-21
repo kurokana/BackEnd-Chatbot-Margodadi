@@ -186,16 +186,16 @@ class ConversationController extends Controller
                 'sender_name' => $senderLabel,
                 'content' => $m->content,
                 'is_system_alert' => $m->sender_type === SenderType::SYSTEM || ($m->metadata['is_alert'] ?? false),
-                'timestamp' => $m->created_at?->format('H:i') ?? '',
-                'date' => $m->created_at?->format('d M Y') ?? '',
-                'created_at' => $m->created_at?->toIso8601String(),
+                'timestamp' => $m->created_at?->timezone('Asia/Jakarta')->format('H:i') ?? '',
+                'date' => $m->created_at?->timezone('Asia/Jakarta')->format('d M Y') ?? '',
+                'created_at' => $m->created_at?->timezone('Asia/Jakarta')->toIso8601String(),
             ];
         });
 
         $statusHistory = $conv->hitlEvents->map(function (HitlEvent $e) {
             return [
                 'status' => $e->event_type?->value ?? 'STATUS_CHANGE',
-                'timestamp' => $e->created_at?->format('d M Y, H:i') ?? '',
+                'timestamp' => $e->created_at?->timezone('Asia/Jakarta')->format('d M Y, H:i') ?? '',
                 'note' => $e->notes ?? 'Pembaruan status percakapan',
                 'operator_name' => $e->operator?->name,
             ];
@@ -206,7 +206,7 @@ class ConversationController extends Controller
             $statusHistory = collect([
                 [
                     'status' => 'OPEN',
-                    'timestamp' => $conv->created_at?->format('d M Y, H:i') ?? '',
+                    'timestamp' => $conv->created_at?->timezone('Asia/Jakarta')->format('d M Y, H:i') ?? '',
                     'note' => 'Percakapan dimulai via '.ucfirst($conv->channel?->value ?? 'Web'),
                 ],
             ]);
@@ -325,9 +325,9 @@ class ConversationController extends Controller
                     'sender' => 'OPERATOR',
                     'sender_name' => $operator->name.' (Operator)',
                     'content' => $message->content,
-                    'timestamp' => $message->created_at->format('H:i'),
-                    'date' => $message->created_at->format('d M Y'),
-                    'created_at' => $message->created_at->toIso8601String(),
+                    'timestamp' => $message->created_at->timezone('Asia/Jakarta')->format('H:i'),
+                    'date' => $message->created_at->timezone('Asia/Jakarta')->format('d M Y'),
+                    'created_at' => $message->created_at->timezone('Asia/Jakarta')->toIso8601String(),
                 ],
                 'conversation_status' => $conv->status?->value,
                 'needs_human' => (bool) $conv->needs_human,

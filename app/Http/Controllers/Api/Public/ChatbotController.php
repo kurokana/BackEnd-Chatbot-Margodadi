@@ -82,7 +82,7 @@ class ChatbotController extends Controller
                     'id' => 'msg-init-'.Str::random(6),
                     'sender' => 'bot',
                     'text' => 'Halo Warga Pekon Margodadi! Saya **Virtual Guide resmi Pekon Margodadi**. Ada yang dapat saya bantu terkait administrasi surat, syarat perizinan, atau produk UMKM desa hari ini?',
-                    'timestamp' => now()->format('H:i').' WIB',
+                    'timestamp' => now()->timezone('Asia/Jakarta')->format('H:i').' WIB',
                 ],
             ],
         ]);
@@ -124,7 +124,7 @@ class ChatbotController extends Controller
                 'text' => $msg->content,
                 'operatorName' => $msg->operator?->name,
                 'operatorRole' => 'Aparatur / Operator Pekon',
-                'timestamp' => $msg->created_at ? $msg->created_at->format('H:i').' WIB' : '-',
+                'timestamp' => $msg->created_at ? $msg->created_at->timezone('Asia/Jakarta')->format('H:i').' WIB' : '-',
             ];
         });
 
@@ -185,7 +185,7 @@ class ChatbotController extends Controller
         ]);
 
         $q = strtolower($text);
-        $timeStr = now()->format('H:i').' WIB';
+        $timeStr = now()->timezone('Asia/Jakarta')->format('H:i').' WIB';
 
         // Check if query triggers Human-in-the-loop (HITL)
         $hitlKeywords = ['operator', 'manusia', 'petugas', 'kadus', 'lurah', 'bantuan langsung', 'tidak paham', 'salah', 'komplain', 'dinas luar', 'mendesak', 'diskresi'];

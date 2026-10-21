@@ -112,4 +112,30 @@ class OperatorPresenceAndTimeoutTest extends TestCase
         $inactiveOp->refresh();
         $this->assertEquals(OperatorStatus::OFFLINE, $inactiveOp->status);
     }
+
+    public function test_operator_token_invalidated_when_idle_exceeds_sixty_minutes(): void
+    {
+        $operator = Operator::factory()->create([
+            'email' => 'operator_idle@margodadi.desa.id',
+            'role' => OperatorRole::OPERATOR,
+            'status' => OperatorStatus::ONLINE,
+            'last_activity_at' => now()->subMinutes(61), // Exceeded 60-minute threshold
+        ]);
+        $token = $operator->createToken('idle_session_token')->plainTextToken;
+
+        // Any protected endpoint invoking UpdateOperatorActivity middleware
+        $response = $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/auth/me');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'status' => 'error',
+            'code' => 'IDLE_TIMEOUT',
+        ]);
+
+        // Verify operator status changed to OFFLINE and token revoked
+        $operator->refresh();
+        $this->assertEquals(OperatorStatus::OFFLINE, $operator->status);
+        $this->assertCount(0, $operator->tokens);
+    }
 }

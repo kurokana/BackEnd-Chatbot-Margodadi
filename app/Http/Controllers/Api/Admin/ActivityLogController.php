@@ -67,9 +67,9 @@ class ActivityLogController extends Controller
                 'target' => $log->target ?? '-',
                 'description' => $log->description,
                 'channel' => strtolower($log->channel?->value ?? ($log->channel ?? 'web')),
-                'timestamp' => $log->created_at ? Carbon::parse($log->created_at)->format('H:i') : '',
-                'date' => $log->created_at ? Carbon::parse($log->created_at)->translatedFormat('d M Y') : '',
-                'created_at' => $log->created_at ? Carbon::parse($log->created_at)->toIso8601String() : null,
+                'timestamp' => $log->created_at ? Carbon::parse($log->created_at)->timezone('Asia/Jakarta')->format('H:i') : '',
+                'date' => $log->created_at ? Carbon::parse($log->created_at)->timezone('Asia/Jakarta')->translatedFormat('d M Y') : '',
+                'created_at' => $log->created_at ? Carbon::parse($log->created_at)->timezone('Asia/Jakarta')->toIso8601String() : null,
             ];
         });
 

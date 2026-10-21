@@ -191,8 +191,8 @@ class DashboardController extends Controller
                     'target' => $log->target ?? '-',
                     'description' => $log->description,
                     'channel' => strtolower($log->channel?->value ?? 'web'),
-                    'timestamp' => $log->created_at?->format('H:i') ?? '',
-                    'date' => $log->created_at?->format('d M Y') ?? '',
+                    'timestamp' => $log->created_at?->timezone('Asia/Jakarta')->format('H:i') ?? '',
+                    'date' => $log->created_at?->timezone('Asia/Jakarta')->format('d M Y') ?? '',
                 ];
             });
 
