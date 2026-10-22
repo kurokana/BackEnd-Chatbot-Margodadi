@@ -274,8 +274,8 @@ class LocalEmbedder(BaseEmbedder):
             return self._model
 
         try:
-            import torch
-            from sentence_transformers import SentenceTransformer
+            import torch  # type: ignore # pyright: ignore[reportMissingImports]
+            from sentence_transformers import SentenceTransformer  # type: ignore # pyright: ignore[reportMissingImports]
         except ImportError as exc:
             raise RuntimeError(
                 "Library 'sentence-transformers' dan 'torch' diperlukan "
